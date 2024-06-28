@@ -1,6 +1,9 @@
 import { useThemeColor } from "@/hooks/useThemeColor";
 import { ScrollView, View } from "react-native";
-import { Button, Card, H1, Paragraph, XStack } from "tamagui";
+
+import { Card, CardContent } from "~/components/ui/card";
+import { Text } from "~/components/ui/text";
+import { H1 } from "~/components/ui/typography";
 
 type Note = {
   text: string;
@@ -13,36 +16,23 @@ type Note = {
 export function NoteCard({ note, ...props }: { note: Note }) {
   const { text } = note;
   return (
-    <Card elevate size="$4" bordered {...props}>
-      <Card.Header padded>
-        <Paragraph theme="alt2">
+    <Card className="w-full max-w-sm">
+      {/* <CardHeader>
+        <CardTitle>Card Title</CardTitle>
+        <CardDescription>Card Description</CardDescription>
+      </CardHeader> */}
+      <CardContent className="mt-6">
+        <Text>
           {text} {text} {text} {text} {text} {text} {text} {text} {text} {text}{" "}
           {text} {text} {text} {text} {text} {text} {text} {text} {text} {text}{" "}
           {text} {text} {text} {text} {text} {text} {text} {text} {text} {text}{" "}
           {text} {text} {text}
-        </Paragraph>
-      </Card.Header>
-      <Card.Footer padded>
-        <XStack flex={1} />
-        <Button borderRadius="$10">Purchase</Button>
-      </Card.Footer>
+        </Text>
+      </CardContent>
+      {/* <CardFooter>
+        <Text>Card Footer</Text>
+      </CardFooter> */}
     </Card>
-
-    // <View
-    //   style={{
-    //     padding: 8,
-    //     backgroundColor: "white",
-    //     borderRadius: 8,
-    //     width: 320,
-    //   }}
-    // >
-    //   <Text>
-    //     {text} {text} {text} {text} {text} {text} {text} {text} {text} {text}{" "}
-    //     {text} {text} {text} {text} {text} {text} {text} {text} {text} {text}{" "}
-    //     {text} {text} {text} {text} {text} {text} {text} {text} {text} {text}{" "}
-    //     {text} {text} {text}
-    //   </Text>
-    // </View>
   );
 }
 

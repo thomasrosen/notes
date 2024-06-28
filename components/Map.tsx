@@ -1,8 +1,10 @@
+import { AddNoteButton } from "@/components/AddNoteButton";
+import { Button } from "@/components/ui/button";
+import { Text } from "@/components/ui/text";
+import { useLocation } from "@/hooks/useLocation";
 import React, { useCallback } from "react";
-import { Button, SafeAreaView, StyleSheet, View } from "react-native";
+import { SafeAreaView, StyleSheet, View } from "react-native";
 import MapView, { Geojson, MapType, Marker } from "react-native-maps";
-import { useLocation } from "../hooks/useLocation";
-import { AddNoteButton } from "./AddNoteButton";
 
 const myPlace: any = {
   type: "FeatureCollection",
@@ -112,11 +114,14 @@ export function Map() {
       <SafeAreaView>
         <View style={styles.styleControls}>
           {styleOptions.map(({ label, type }) => (
-            <Button
-              key={label}
-              title={label}
-              onPress={() => setMapType(type)}
-            />
+            <Button key={label} onPress={() => setMapType(type)}>
+              <Text>{label}</Text>
+            </Button>
+            // <Button
+            //   key={label}
+            //   title={label}
+            //   onPress={() => setMapType(type)}
+            // />
           ))}
         </View>
 

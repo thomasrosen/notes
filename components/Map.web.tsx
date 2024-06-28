@@ -1,9 +1,8 @@
-import { Button, StyleSheet, View } from "react-native";
-
+import { useNotesCacheStore } from "@/lib/useNotesCacheStore";
 import maplibregl from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
-import React, { useCallback, useEffect, useRef } from "react";
-
+import React, { useCallback, useEffect, useRef, useState } from "react";
+import { Button, StyleSheet, View } from "react-native";
 import { AddNoteButton } from "./AddNoteButton";
 import { NoteList } from "./NoteList";
 
@@ -76,22 +75,143 @@ function notes2geojson(notes: any[]): any {
   };
 }
 
+// Convert latitude and longitude to tile coordinates
+function latLonToTile(lat, lon, zoom) {
+  const n = Math.pow(2, zoom);
+  const xtile = Math.floor(((lon + 180) / 360) * n);
+  const ytile = Math.floor(
+    ((1 -
+      Math.log(
+        Math.tan((lat * Math.PI) / 180) + 1 / Math.cos((lat * Math.PI) / 180)
+      ) /
+        Math.PI) /
+      2) *
+      n
+  );
+  return [xtile, ytile];
+}
+
+// Get all tiles within the given bounds for specified zoom levels
+function getTilesInBounds(south, west, north, east, zoomLevels) {
+  const tiles = [];
+
+  zoomLevels.forEach((zoom) => {
+    const [minX, maxY] = latLonToTile(south, west, zoom);
+    const [maxX, minY] = latLonToTile(north, east, zoom);
+
+    for (let x = minX; x <= maxX; x++) {
+      for (let y = minY; y <= maxY; y++) {
+        tiles.push({ zoom, x, y });
+      }
+    }
+  });
+
+  return tiles;
+}
+
 export function Map() {
   const mapContainer = useRef(null);
   const mapRef = useRef<any>(null);
 
-  const notes = [
-    { text: "Note 1", location: { latitude: 52.5212, longitude: 13.405 } },
-    { text: "Note 2", location: { latitude: 37.7749, longitude: -122.4194 } },
-    { text: "Note 3", location: { latitude: 40.7128, longitude: -74.006 } },
-    { text: "Note 4", location: { latitude: 34.0522, longitude: -118.2437 } },
-    { text: "Note 5", location: { latitude: 51.5074, longitude: -0.1278 } },
-    { text: "Note 6", location: { latitude: 48.8566, longitude: 2.3522 } },
-    { text: "Note 7", location: { latitude: 35.6895, longitude: 139.6917 } },
-    { text: "Note 8", location: { latitude: 37.5665, longitude: 126.978 } },
-    { text: "Note 9", location: { latitude: 55.7558, longitude: 37.6176 } },
-    { text: "Note 10", location: { latitude: 19.4326, longitude: -99.1332 } },
-  ];
+  const {
+    tiles: notesTileCache,
+    getTiles,
+    setTile,
+  } = useNotesCacheStore((state) => state);
+
+  const [notes, setNotes] = useState([]); // [{ text: "Note 1", location: { latitude: 52.5212, longitude: 13.405 } }
+
+  console.log("notesTileCache", notesTileCache);
+
+  const fetchTiles = useCallback(async (tileKeys: string[]) => {
+    // const notesByTiles = await fetch('').then((res) => res.json());
+
+    const notesByTiles = {
+      [tileKeys[0]]: [
+        { text: "Note 1", location: { latitude: 52.5212, longitude: 13.405 } },
+        {
+          text: "Note 2",
+          location: { latitude: 37.7749, longitude: -122.4194 },
+        },
+        { text: "Note 3", location: { latitude: 40.7128, longitude: -74.006 } },
+        {
+          text: "Note 4",
+          location: { latitude: 34.0522, longitude: -118.2437 },
+        },
+        { text: "Note 5", location: { latitude: 51.5074, longitude: -0.1278 } },
+        { text: "Note 6", location: { latitude: 48.8566, longitude: 2.3522 } },
+        {
+          text: "Note 7",
+          location: { latitude: 35.6895, longitude: 139.6917 },
+        },
+        { text: "Note 8", location: { latitude: 37.5665, longitude: 126.978 } },
+        { text: "Note 9", location: { latitude: 55.7558, longitude: 37.6176 } },
+        {
+          text: "Note 10",
+          location: { latitude: 19.4326, longitude: -99.1332 },
+        },
+      ],
+    };
+
+    console.log("notesByTiles", notesByTiles);
+
+    return notesByTiles;
+  }, []);
+
+  const loadNotes = useCallback(
+    async ({
+      zoom,
+      bounds,
+    }: {
+      zoom: number;
+      bounds: {
+        south: number;
+        west: number;
+        north: number;
+        east: number;
+      };
+    }) => {
+      const requiredTiles = getTilesInBounds(
+        bounds.south,
+        bounds.west,
+        bounds.north,
+        bounds.east,
+        [Math.floor(zoom)]
+      ).map((tile) => `${tile.zoom}/${tile.x}/${tile.y}`);
+
+      console.log("requiredTiles", requiredTiles);
+
+      function loadAndSetNotesByTiles(tiles: string[]) {
+        const notesByTiles = getTiles(requiredTiles);
+        const foundNotes = Object.values(notesByTiles).flatMap(
+          (notes) => notes
+        );
+        console.log("foundNotes", foundNotes);
+
+        setNotes(foundNotes);
+        mapRef.current
+          .getSource("earthquakes")
+          .setData(notes2geojson(foundNotes));
+
+        return notesByTiles;
+      }
+
+      const notesByTiles = loadAndSetNotesByTiles(requiredTiles);
+
+      const notFoundTileKeys = requiredTiles.filter(
+        (key) => !notesByTiles[key]
+      );
+      console.log("notFoundTileKeys", notFoundTileKeys);
+      const newTiles = await fetchTiles(notFoundTileKeys);
+      console.log("newTiles", newTiles);
+      for (const [tileKey, notes] of Object.entries(newTiles)) {
+        setTile(tileKey, notes);
+      }
+
+      loadAndSetNotesByTiles(requiredTiles);
+    },
+    []
+  );
 
   useEffect(() => {
     if (mapRef.current) {
@@ -111,6 +231,20 @@ export function Map() {
     });
 
     map.on("load", () => {
+      map.on("moveend", () => {
+        const zoom = map.getZoom();
+
+        const mapBounds = map.getBounds();
+        const bounds = {
+          south: mapBounds.getSouth(),
+          west: mapBounds.getWest(),
+          north: mapBounds.getNorth(),
+          east: mapBounds.getEast(),
+        };
+
+        loadNotes({ zoom, bounds });
+      });
+
       // Add zoom and rotation controls to the map.
       map.addControl(new maplibregl.NavigationControl());
 
